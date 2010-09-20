@@ -22,11 +22,11 @@ class CreateInitialStructure < ActiveRecord::Migration
     end
 
     create_table 'casserver_tgt', :force => true do |t|
-      t.string    'ticket',          :null => false
-      t.timestamp 'created_on',      :null => false
-      t.string    'client_hostname', :null => false
-      t.string    'username',        :null => false
-      t.text      'casserver_tgt',   :null => true
+      t.string    'ticket',           :null => false
+      t.timestamp 'created_on',       :null => false
+      t.string    'client_hostname',  :null => false
+      t.string    'username',         :null => false
+      t.text      'extra_attributes', :null => true
     end
 
     create_table 'casserver_pgt', :force => true do |t|
