@@ -1,5 +1,6 @@
-require 'config/requirements'
-require 'config/hoe' # setup Hoe + all gem configuration
+$:.unshift(File.join(File.dirname(__FILE__), 'lib'))
+
+require 'rubygems'
 
 Dir['tasks/**/*.rake'].each { |rake| load rake }
 
@@ -7,6 +8,7 @@ namespace :db do
   desc "Migrate the database"
   task :migrate do
     require 'active_record'
+    require 'logger'
 
     config = YAML::load_file("/etc/rubycas-server/config.yml")['database']
 
