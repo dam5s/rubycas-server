@@ -4,7 +4,17 @@ require 'config/hoe' # setup Hoe + all gem configuration
 Dir['tasks/**/*.rake'].each { |rake| load rake }
 
 namespace :db do
-  desc "bring your CAS server database schema up to date"
+  desc "Migrate the database"
+  task :migrate do
+    require 'active_record'
+
+    config = YAML::load_file("/etc/rubycas-server/config.yml")['database']
+
+    ActiveRecord::Base.establish_connection(config)
+    ActiveRecord::Base.logger = Logger.new(STDOUT)
+    ActiveRecord::Migration.verbose = true
+    ActiveRecord::Migrator.migrate("db/migrate")
+  end
 end
 
 desc "generate a self signed SSL certificate (in order to get going easily)"
