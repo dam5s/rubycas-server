@@ -38,13 +38,17 @@ module CASServer
       end
 
       if tgt and !tgt_error
-        @message = {:type => 'notice',
-          :message => _("You are currently logged in as '%s'. If this is not you, please log in below.") % tgt.username }
+        @message = {
+          :type => 'notice',
+          :message => _("You are currently logged in as '%s'. If this is not you, please log in below.") % tgt.username 
+        }
       end
 
       if params['redirection_loop_intercepted']
-        @message = {:type => 'mistake',
-          :message => _("The client and server are unable to negotiate authentication. Please try logging in again later.")}
+        @message = {
+          :type => 'mistake',
+          :message => _("The client and server are unable to negotiate authentication. Please try logging in again later.")
+        }
       end
 
       begin
@@ -138,30 +142,23 @@ module CASServer
       credentials_are_valid = false
       extra_attributes = {}
       successful_authenticator = nil
+
       begin
-        auth_index = 0
-        settings.auth.each do |auth_class|
-          auth = auth_class.new
-
-          auth_config = settings.config[:authenticator][auth_index]
-          # pass the authenticator index to the configuration hash in case the authenticator needs to know
-          # it splace in the authenticator queue
-          auth.configure(auth_config.merge('auth_index' => auth_index))
-
+        settings.auth.each do |auth|
           credentials_are_valid = auth.validate(
             :username => @username,
             :password => @password,
             :service => @service,
             :request => @env
           )
+
           if credentials_are_valid
             extra_attributes.merge!(auth.extra_attributes) unless auth.extra_attributes.blank?
             successful_authenticator = auth
             break
           end
-
-          auth_index += 1
         end
+
       rescue CASServer::AuthenticatorError => e
         $LOG.error(e)
         @message = {:type => 'mistake', :message => e.to_s}

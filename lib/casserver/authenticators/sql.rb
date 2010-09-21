@@ -54,32 +54,34 @@ end
 #     extra_attributes: full_name, access_level
 #
 class CASServer::Authenticators::SQL < CASServer::Authenticators::Base
-  def self.setup(options)
+  attr_reader :user_model
+
+  def initialize(options = {})
+    super(options)
     raise CASServer::AuthenticatorError, "Invalid authenticator configuration!" unless options[:database]
 
-    user_model_name = "CASUser_#{options[:auth_index]}"
+    user_model_name = "CASUser_#{options[:index]}"
     $LOG.debug "CREATING USER MODEL #{user_model_name}"
 
+    @user_model = self.class.create_user_model(user_model_name, options)
+  end
+
+  def self.create_user_model(name, options = {})
     class_eval %{
-      class #{user_model_name} < ActiveRecord::Base
+      class #{name} < ActiveRecord::Base
       end
     }
 
-    @user_model = const_get(user_model_name)
-    @user_model.establish_connection(options[:database])
-    @user_model.set_table_name(options[:user_table] || 'users')
-    @user_model.inheritance_column = 'no_inheritance_column' if options[:ignore_type_column]
-  end
-
-  def self.user_model
-    @user_model
+    user_model = const_get(name)
+    user_model.establish_connection(options[:database])
+    user_model.set_table_name(options[:user_table] || 'users')
+    user_model.inheritance_column = 'no_inheritance_column' if options[:ignore_type_column]
+    user_model
   end
 
   def validate(credentials)
     read_standard_credentials(credentials)
     raise_if_not_configured
-
-    user_model = self.class.user_model
 
     username_column = @options[:username_column] || 'username'
     password_column = @options[:password_column] || 'password'
@@ -116,7 +118,7 @@ class CASServer::Authenticators::SQL < CASServer::Authenticators::Base
     ) unless @options
   end
 
-  def extract_extra user
+  def extract_extra(user)
     @extra_attributes = {}
     extra_attributes_to_extract.each do |col|
       @extra_attributes[col] = user.send(col)

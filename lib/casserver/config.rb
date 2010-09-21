@@ -122,45 +122,39 @@ module CASServer
 
     def self.init_authenticators!
       auth = []
+
+      unless config[:authenticator].instance_of?(Array)
+        config[:authenticator] = [config[:authenticator]]
+      end
       
-      begin
-        # attempt to instantiate the authenticator
-        config[:authenticator] = [config[:authenticator]] unless config[:authenticator].instance_of? Array
-        config[:authenticator].each { |authenticator| auth << authenticator[:class].constantize}
-      rescue NameError
-        if config[:authenticator].instance_of? Array
-          config[:authenticator].each do |authenticator|
-            if !authenticator[:source].nil?
-              # config.yml explicitly names source file
-              require authenticator[:source]
-            else
-              # the authenticator class hasn't yet been loaded, so lets try to load it from the casserver/authenticators directory
-              auth_rb = authenticator[:class].underscore.gsub('cas_server/', '')
-              require 'casserver/'+auth_rb
-            end
-            auth << authenticator[:class].constantize
-          end
-        else
-          if config[:authenticator][:source]
+      # Attempt to instantiate the authenticator
+      config[:authenticator].each do |authenticator|
+        begin
+          auth << [ authenticator[:class].constantize, authenticator ]
+        rescue NameError
+          if authenticator[:source].present?
             # config.yml explicitly names source file
-            require config[:authenticator][:source]
+            require authenticator[:source]
           else
             # the authenticator class hasn't yet been loaded, so lets try to load it from the casserver/authenticators directory
-            auth_rb = config[:authenticator][:class].underscore.gsub('cas_server/', '')
+            auth_rb = authenticator[:class].underscore.gsub('cas_server/', '')
             require 'casserver/'+auth_rb
           end
 
-          auth << config[:authenticator][:class].constantize
-          config[:authenticator] = [config[:authenticator]]
+          auth << [ authenticator[:class].constantize, authenticator ]
         end
       end
 
-      auth.zip(config[:authenticator]).each_with_index{ |auth_conf, index|
-        authenticator, conf = auth_conf
-        $LOG.debug "About to setup #{authenticator} with #{conf.inspect}..."
-        authenticator.setup(conf.merge('auth_index' => index)) if authenticator.respond_to?(:setup)
-        $LOG.debug "Done setting up #{authenticator}."
-      }
+      index = 0
+      auth = auth.map do |class_and_config|
+        index += 1
+        klass, konfig = class_and_config
+
+        $LOG.debug "About to setup #{klass} with #{konfig.inspect}..."
+        instance = klass.new( konfig.merge('index' => index-1) )
+        $LOG.debug "Done setting up #{klass}."
+        instance
+      end
 
       set :auth, auth
     end

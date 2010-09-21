@@ -49,8 +49,6 @@ class CASServer::Authenticators::SQLAuthlogic < CASServer::Authenticators::SQL
     read_standard_credentials(credentials)
     raise_if_not_configured
 
-    user_model = self.class.user_model
-
     username_column = @options[:username_column] || "login"
     password_column = @options[:password_column] || "crypted_password"
     salt_column     = @options[:salt_column]
@@ -66,7 +64,7 @@ class CASServer::Authenticators::SQLAuthlogic < CASServer::Authenticators::SQL
       encryptor = Authlogic::CryptoProviders::Sha512
     end
 
-    @options[:encryptor_options].each do |name, value|
+    @options[:encryptor_options].to_a.each do |name, value|
       encryptor.send("#{name}=", value) if encryptor.respond_to?("#{name}=")
     end
 

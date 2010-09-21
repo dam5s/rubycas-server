@@ -24,8 +24,6 @@ class CASServer::Authenticators::SQLRestAuth < CASServer::Authenticators::SQLEnc
     read_standard_credentials(credentials)
     raise_if_not_configured
 
-    user_model = self.class.user_model
-
     username_column = @options[:username_column] || "email"
 
     $LOG.debug "#{self.class}: [#{user_model}] " + "Connection pool size: #{user_model.connection_pool.instance_variable_get(:@checked_out).length}/#{user_model.connection_pool.instance_variable_get(:@connections).length}"
