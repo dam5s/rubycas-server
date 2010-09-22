@@ -4,7 +4,10 @@ require 'rubygems'
 
 $: << File.dirname(__FILE__) + "../lib"
 
+if ARGV.join.match('--debugger')
+  require 'ruby-debug' 
+  puts "=> Debugger Enabled"
+end
 require 'casserver'
-require 'casserver/server'
 
 CASServer::Server.run!
