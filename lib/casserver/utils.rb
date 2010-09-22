@@ -13,20 +13,17 @@ module CASServer
     end
     module_function :random_string
 
-    def log_controller_action(controller, params)
+    def log_action(action_name, params)
       $LOG << "\n"
 
       /`(.*)'/.match(caller[1])
       method = $~[1]
 
-      if params.respond_to? :dup
-        params2 = params.dup
-        params2['password'] = '******' if params2['password']
-      else
-        params2 = params
-      end
-      $LOG.debug("Processing #{controller}::#{method} #{params2.inspect}")
+      logged_params = params.dup
+      logged_params['password'] = '******' if params['password']
+
+      $LOG.debug("Processing #{action_name} #{logged_params.inspect}")
     end
-    module_function :log_controller_action
+    module_function :log_action
   end
 end

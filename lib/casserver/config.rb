@@ -1,9 +1,19 @@
-require 'sinatra/base'
-require 'logger'
-$LOG = Logger.new(STDOUT)
+require 'models'
+require 'cas'
+require 'localization'
+require 'helpers'
+require 'utils'
 
 module CASServer
   class ServerConfig < Sinatra::Base
+    include Models
+    include CAS # CAS protocol helpers
+    include Localization
+
+    helpers do
+      include Helpers
+    end
+
     config = HashWithIndifferentAccess.new(
       :maximum_unused_login_ticket_lifetime   => 5.minutes,
       :maximum_unused_service_ticket_lifetime => 5.minutes, # CAS Protocol Spec, sec. 3.2.1 (recommended expiry time)
@@ -16,6 +26,14 @@ module CASServer
     set :public, File.expand_path(File.dirname(__FILE__)+"/../../public")
     set :config, config
     set :config_file_loaded, false
+    set :haml, :format => :html5
+
+    # Xml templates will be renered without template by default
+    alias :old_haml :haml
+    def haml(template, options = {})
+      options = options.merge(:layout => false) if template.to_s.match(/\.xml$/)
+      old_haml(template, options)
+    end
 
     # Automatically add prefix to URI
     def self.uri(path = '')
@@ -160,7 +178,7 @@ module CASServer
     end
     
     def self.init_database!
-      CASServer::Model::Base.establish_connection(config[:database])
+      Base.establish_connection(config[:database])
     end
 
     configure do
@@ -179,6 +197,17 @@ module CASServer
       GetText.locale = determine_locale(request)
       @theme = 'urbacon'
       @organization = "URBACON"
+    end
+
+    def response_status_from_error(error)
+      case error.code.to_s
+      when /^INVALID_/, 'BAD_PGT'
+        422
+      when 'INTERNAL_ERROR'
+        500
+      else
+        500
+      end
     end
 
   end

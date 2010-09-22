@@ -1,27 +1,19 @@
-$: << File.expand_path(File.dirname(__FILE__)) + '/../../vendor/isaac_0.9.1'
-
-require 'casserver/localization'
-require 'casserver/utils'
-require 'casserver/cas'
-require 'casserver/config'
+require 'config'
 
 module CASServer
   class Server < ServerConfig
-    include CASServer::CAS # CAS protocol helpers
-    include Localization
-
     get uri do
       redirect uri('login')
     end
 
     # The #.#.# comments (e.g. "2.1.3") refer to section numbers in the CAS protocol spec
     # under http://www.ja-sig.org/products/cas/overview/protocol/index.html
-    
+
     # 2.1 :: Login
 
     # 2.1.1
     get uri('login') do
-      CASServer::Utils::log_controller_action(self.class, params)
+      Utils::log_action('GET /login', params)
 
       # make sure there's no caching
       headers['Pragma'] = 'no-cache'
@@ -40,7 +32,7 @@ module CASServer
       if tgt and !tgt_error
         @message = {
           :type => 'notice',
-          :message => _("You are currently logged in as '%s'. If this is not you, please log in below.") % tgt.username 
+          :message => _("You are currently logged in as '%s'. If this is not you, please log in below.") % tgt.username
         }
       end
 
@@ -96,19 +88,19 @@ module CASServer
         @form_action = params['submitToURI'] || guessed_login_uri
 
         if @form_action
-          render :login_form
+          haml :'login/form', :layout => false
         else
           @status = 500
           _("Could not guess the CAS login URI. Please supply a submitToURI parameter with your request.")
         end
       else
-        render(:erb, :login)
+        haml :'login/page'
       end
-    end
+    end # get /login
 
     # 2.2
     post uri('login') do
-      Utils::log_controller_action(self.class, params)
+      Utils::log_action('POST /login', params)
 
       # 2.2.1 (optional)
       @service = clean_service_url(params['service'])
@@ -120,7 +112,7 @@ module CASServer
 
       # Remove leading and trailing widespace from username.
       @username.strip! if @username
-      
+
       if @username && settings.config[:downcase_username]
         $LOG.debug("Converting username #{@username.inspect} to lowercase because 'downcase_username' option is enabled.")
         @username.downcase!
@@ -131,7 +123,7 @@ module CASServer
         # generate another login ticket to allow for re-submitting the form
         @lt = generate_login_ticket.ticket
         @status = 401
-        render :erb, :login
+        haml :'login/page'
       end
 
       # generate another login ticket to allow for re-submitting the form after a post
@@ -159,7 +151,7 @@ module CASServer
           end
         end
 
-      rescue CASServer::AuthenticatorError => e
+      rescue AuthenticatorError => e
         $LOG.error(e)
         @message = {:type => 'mistake', :message => e.to_s}
         return render(:login)
@@ -212,14 +204,14 @@ module CASServer
         @status = 401
       end
 
-      render :erb, :login
-    end
+      haml :'login/page'
+    end # post /login
 
     # 2.3
 
     # 2.3.1
     get uri('logout') do
-      CASServer::Utils::log_controller_action(self.class, params)
+      Utils::log_action('GET /proxyValidate', params)
 
       # The behaviour here is somewhat non-standard. Rather than showing just a blank
       # "logout" page, we take the user back to the login page with a "you have been logged out"
@@ -230,12 +222,12 @@ module CASServer
 
       @gateway = params['gateway'] == 'true' || params['gateway'] == '1'
 
-      tgt = CASServer::Model::TicketGrantingTicket.find_by_ticket(request.cookies['tgt'])
+      tgt = TicketGrantingTicket.find_by_ticket(request.cookies['tgt'])
 
       request.cookies.delete 'tgt'
 
       if tgt
-        CASServer::Model::TicketGrantingTicket.transaction do
+        TicketGrantingTicket.transaction do
           $LOG.debug("Deleting Service/Proxy Tickets for '#{tgt}' for user '#{tgt.username}'")
           tgt.granted_service_tickets.each do |st|
             send_logout_notification_for_service_ticket(st) if $CONF.enable_single_sign_out
@@ -245,8 +237,8 @@ module CASServer
             st.destroy
           end
 
-          pgts = CASServer::Model::ProxyGrantingTicket.find(:all,
-            :conditions => [CASServer::Model::Base.connection.quote_table_name(CASServer::Model::ServiceTicket.table_name)+".username = ?", tgt.username],
+          pgts = ProxyGrantingTicket.find(:all,
+            :conditions => [Base.connection.quote_table_name(ServiceTicket.table_name)+".username = ?", tgt.username],
             :include => :service_ticket)
           pgts.each do |pgt|
             $LOG.debug("Deleting Proxy-Granting Ticket '#{pgt}' for user '#{pgt.service_ticket.username}'")
@@ -271,10 +263,47 @@ module CASServer
       if @gateway && @service
         redirect @service, 303
       elsif @continue_url
-        render :erb, :logout
+        haml :logout
       else
-        render :erb, :login
+        haml :'login/page'
       end
-    end
+    end # get /logout
+
+    # 2.6 :: ProxyValidate
+
+    # 2.6.1
+    get uri('proxyValidate') do
+      Utils::log_action('GET /proxyValidate', params)
+
+      @service = clean_service_url(params['service'])
+      @ticket  = params['ticket']
+      @pgt_url = params['pgtUrl']
+      @renew   = params['renew']
+
+      @proxies = []
+
+      ticket, @error = validate_proxy_ticket(@service, @ticket)
+      @success = ticket && !@error
+
+      @extra_attributes = {}
+      if @success
+        @username = ticket.username
+
+        if ticket.kind_of?(ProxyTicket)
+          @proxies << ticket.granted_by_pgt.service_ticket.service
+        end
+
+        if @pgt_url
+          pgt = generate_proxy_granting_ticket(@pgt_url, ticket)
+          @pgtiou = pgt.iou if pgt
+        end
+
+        @extra_attributes = ticket.granted_by_tgt.extra_attributes || {}
+      end
+
+      @status = response_status_from_error(@error) if @error
+
+      haml "proxy_validate/#{@success ? 'success' : 'failure'}.xml".to_sym
+    end # get /proxyValidate
   end
 end

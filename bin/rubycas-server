@@ -4,6 +4,7 @@ require 'rubygems'
 
 $: << File.dirname(__FILE__) + "../lib"
 
+require 'casserver'
 require 'casserver/server'
 
 CASServer::Server.run!

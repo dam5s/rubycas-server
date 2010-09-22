@@ -1,0 +1,12 @@
+%cas:serviceResponse{ "xmlns:cas" => "http://www.yale.edu/tp/cas" }
+  %cas:authenticationSuccess
+    %cas:user= @username
+    - @extra_attributes.each do |key, value|
+      %key= serialize_extra_attribute(value)
+
+    - if @pgtiou
+      %cas:proxyGrantingTicket= @pgtiou
+    - if @proxies.present?
+      %cas:proxies
+        - @proxies.each do |proxy_url|
+          %cas:proxy= proxy_url

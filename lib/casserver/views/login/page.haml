@@ -1,0 +1,18 @@
+%table#login-box
+  %tr
+    %td{:colspan => 2}
+      #headline-container
+        %strong= @organization
+        = _(" Central Login")
+
+  - if @message
+    %tr
+      %td#messagebox-container{:colspan => 2}
+        %div{:class => "messagebox #{@message[:type]}"}
+          = @message[:message]
+
+  %tr
+    %td#logo-container
+      %img#logo{:src => "/themes/#{@theme}/logo.png"}
+    %td#login-form-container
+      = haml :'login/form', :layout => false

@@ -1,0 +1,12 @@
+!!! 5
+%html
+  %head
+    %title= @organization + _(" Central Login")
+    %link{ :rel => "stylesheet", :type => "text/css", :href => "/themes/cas.css" }
+    %link{ :rel => "stylesheet", :type => "text/css", :href => "/themes/#{ @theme }/theme.css" }
+    %link{ :rel => "icon", :type => "image/png", :href => "/themes/#{ @theme }/favicon.png" }
+
+  - onload  = "if (document.getElementById('username')) "
+  - onload += "document.getElementById('username').focus()"
+  %body{:onload => onload}
+    = yield
