@@ -1,0 +1,15 @@
+%table#login-box
+  %tr
+    %td{:colspan => 2}
+      #headline-container
+        %strong= @organization
+        = _(" Central Login")
+
+  - if @message
+    %tr
+      %td#messagebox-container{:colspan => 2}
+        %div{:class => "messagebox #{@message[:type]}"}
+          = @message[:message]
+        - if @continue_url
+          %p
+            %a{:href => @continue_url}= @continue_url

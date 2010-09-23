@@ -28,7 +28,7 @@ module CASServer
     set :config_file_loaded, false
     set :haml, :format => :html5
 
-    # Xml templates will be renered without template by default
+    # XML templates will be rendered without layout by default
     alias :old_haml :haml
     def haml(template, options = {})
       options = options.merge(:layout => false) if template.to_s.match(/\.xml$/)
